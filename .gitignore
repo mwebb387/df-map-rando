@@ -1,0 +1,21 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# original Dark Forces data (copyrighted; never commit)
+/gamedata/
+
+# scratch extraction output (regenerate with: dftool gob extract)
+samples/
+
+# room-candidates output (derived from game data)
+/tools/room-candidates/out/
+__pycache__/
+
+# stock rooms extracted from the game data (copyrighted geometry; regenerate with room-extractor)
+/rooms/stock/
+
+# generated levels (derived from game data)
+/out/

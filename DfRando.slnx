@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DarkForces.Core/DarkForces.Core.csproj" />
+    <Project Path="src/DfTool/DfTool.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DarkForces.Core.Tests/DarkForces.Core.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/hlp-decompiler/HlpDecompiler.csproj" />
+    <Project Path="tools/room-extractor/RoomExtractor.csproj" />
+  </Folder>
+</Solution>

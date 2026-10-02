@@ -1,0 +1,110 @@
+{
+  "spec": 0,
+  "id": "example-junction",
+  "name": "Example junction",
+  "author": "DfRando",
+  "palette": "SECBASE.PAL",
+  "exterior": false,
+  "rotatable": true,
+  "bounds": {
+    "minX": 0,
+    "minZ": 4,
+    "maxX": 56,
+    "maxZ": 40,
+    "minY": -16,
+    "maxY": 0
+  },
+  "connectors": [
+    {
+      "id": "A",
+      "facing": "W",
+      "floor": 0,
+      "door": {
+        "kind": "flag",
+        "panel": "IDDOOR1.BM",
+        "frame": "IWFRAME1.BM",
+        "inf": []
+      }
+    },
+    {
+      "id": "B",
+      "facing": "E",
+      "floor": 0
+    },
+    {
+      "id": "C",
+      "facing": "N",
+      "floor": 0,
+      "door": {
+        "kind": "flag",
+        "panel": "IDDOOR1.BM",
+        "frame": "IWFRAME1.BM",
+        "inf": []
+      }
+    }
+  ],
+  "traversal": [
+    {
+      "from": "A",
+      "to": "B",
+      "requires": [],
+      "oneWay": false,
+      "note": "one open floor, nothing in the way"
+    },
+    {
+      "from": "A",
+      "to": "C",
+      "requires": [],
+      "oneWay": false,
+      "note": "one open floor, nothing in the way"
+    },
+    {
+      "from": "B",
+      "to": "A",
+      "requires": [],
+      "oneWay": false,
+      "note": "one open floor, nothing in the way"
+    },
+    {
+      "from": "B",
+      "to": "C",
+      "requires": [],
+      "oneWay": false,
+      "note": "one open floor, nothing in the way"
+    },
+    {
+      "from": "C",
+      "to": "A",
+      "requires": [],
+      "oneWay": false,
+      "note": "one open floor, nothing in the way"
+    },
+    {
+      "from": "C",
+      "to": "B",
+      "requires": [],
+      "oneWay": false,
+      "note": "one open floor, nothing in the way"
+    }
+  ],
+  "itemSlots": [],
+  "goals": [],
+  "startPoints": [],
+  "resources": {
+    "pods": [],
+    "sprites": [
+      "STORMFIN.WAX"
+    ],
+    "frames": [
+      "IMEDKIT.FME"
+    ],
+    "sounds": []
+  },
+  "tags": [
+    "example",
+    "community"
+  ],
+  "notes": [
+    "Hand-built example for docs/authoring-rooms.md: W and N doorways have doors, the wide E opening is an open archway (adapter CA_B)."
+  ]
+}
