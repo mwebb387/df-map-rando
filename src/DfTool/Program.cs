@@ -17,6 +17,7 @@ try
         ["room", "init", var dir, .. var rest] => RoomInit(dir, rest),
         ["room", "validate", .. var dirs] when dirs.Length > 0 => RoomValidate(dirs),
         ["room", "metadata", var dir, .. var rest] => RoomMetadataCommand(dir, rest.Contains("--write")),
+        ["room", "playtest", var dir, .. var rest] => RoomPlaytestCommand(dir, rest),
         ["room", ..] => RoomUsage(),
         ["knobs", .. var rest] => Knobs(rest.Contains("--json")),
         ["generate", .. var rest] => Generate(rest),
@@ -39,7 +40,7 @@ static int Usage()
           dftool gob pack <dir> <file.gob>        packs every file in <dir> (sorted by name)
           dftool roundtrip <path>...              verify GOB/LEV/O/INF/GOL/JEDI.LVL read+write fidelity
                                                   (files or directories, searched recursively)
-          dftool room ...                         room authoring: init, validate, metadata (dftool room for details)
+          dftool room ...                         room authoring: init, validate, metadata, playtest (dftool room for details)
           dftool knobs [--json]                   list every knob (or print the default preset as JSON)
           dftool generate --gob <DARK.GOB> --rooms <dir> [--rooms <dir>...] --out <NAME.GOB>
                           [--preset <file.json>] [--seed <n|text>] [--set knob=value]...
@@ -104,6 +105,11 @@ static int RoomUsage()
                     derived; id, name, doors, traversal, item slots, start points and tags are kept from
                     the existing room.json. Prints the JSON, or with --write saves it (only if the room
                     is then valid).
+          dftool room playtest <dir> --gob <DARK.GOB> --out <FILE.GOB> [--at <connector>] [--slot SECBASE]
+                               [--no-zip] [--force]
+                    wrap the room alone in a GOB replacing mission <slot>, the player just inside
+                    connector <at> (default the first). Also writes FILE.zip for The Force Engine.
+                    Refuses an invalid room unless --force.
         """);
     return 1;
 }
@@ -177,6 +183,32 @@ static int RoomMetadataCommand(string dir, bool write)
     }
     File.WriteAllText(Path.Combine(dir, RoomPackage.MetadataFile), result.Metadata.ToJson());
     log.WriteLine($"-> {Path.Combine(dir, RoomPackage.MetadataFile)}" + (result.Changes.Count == 0 ? " (no changes)" : ""));
+    return 0;
+}
+
+static int RoomPlaytestCommand(string dir, string[] a)
+{
+    string? Opt(string name) => Array.IndexOf(a, name) is var i and >= 0 && i + 1 < a.Length ? a[i + 1] : null;
+    if (Opt("--gob") is not { } gobPath || Opt("--out") is not { } outPath)
+        return RoomUsage();
+
+    var room = RoomPackage.Load(dir);
+    var findings = RoomValidator.Validate(room);
+    foreach (var f in findings)
+        Console.WriteLine($"    {f}");
+    if (findings.Any(f => f.Severity == Severity.Error) && !a.Contains("--force"))
+    {
+        Console.WriteLine("not built: the room has validation errors (fix them, or pass --force to try it anyway)");
+        return 2;
+    }
+    if (Path.GetFileNameWithoutExtension(outPath).Length > 8)
+        Console.Error.WriteLine($"warning: {Path.GetFileName(outPath)} is longer than 8.3; DOS Dark Forces needs short names");
+
+    var slot = (Opt("--slot") ?? "SECBASE").ToUpperInvariant();
+    var gob = RoomPlaytest.Build(room, GobArchive.Load(gobPath), slot, Opt("--at"));
+    foreach (var path in OutputWriter.Write(gob, outPath, zip: !a.Contains("--no-zip")))
+        Console.WriteLine($"-> {path}");
+    Console.WriteLine($"play: The Force Engine, the .zip as a mod; or DOS: dark -u{Path.GetFileName(outPath)}. Then start mission {slot}.");
     return 0;
 }
 

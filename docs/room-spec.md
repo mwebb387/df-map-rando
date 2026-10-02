@@ -152,7 +152,7 @@ so they satisfy these rules by construction.
 
 | ID | Rule |
 |---|---|
-| O1 | Rooms MUST NOT contain the player (`LOGIC: PLAYER`). The start point is generator-owned (§8 `startPoints`). |
+| O1 | A room MAY contain **one** player object (`LOGIC: PLAYER`), but no more. It marks the room's start point and takes precedence over `startPoints` (M5). The generator and playtest remove it and spawn the single real player there when the room is the start room, else just inside a doorway. |
 | O2 | Rooms MUST NOT contain **progression items**: `RED`, `BLUE`, `YELLOW`, `CODE1`–`CODE9`, gating items (`CLEATS`, `MASK`, `GOGGLES`), or key carriers (`I_OFFICERR/B/Y`, `I_OFFICER1`–`9`). Progression items go only in declared `itemSlots`. **Goal items** (`PLANS`, `PHRIK`, `NAVA`, `DATATAPE`, `DT_WEAPON`, `PILE`) MAY stay in the room if `goals` in `room.json` declares each one (M8). |
 | O3 | Every object MUST be inside a room sector: inside its polygon, with Y between the sector's ceiling and floor (floor − second altitude for platforms). Connector stubs MUST NOT contain objects. |
 | O4 | Ordinary enemies, pickups, scenery, SAFE points and generators are allowed and move with the room. |
@@ -248,7 +248,7 @@ existing `room.json` (see authoring-rooms.md §6).
 | M2 | `traversal` is a directed graph between connectors and item slots. Each edge lists the items needed to cross it (`CLEATS`, `MASK`, `GOGGLES`, `RED`, …). An edge not listed is assumed **impossible**, so a room with no traversal entries is a dead end from every connector. |
 | M3 | Requirements use the item logic names from O2. `jump` and `crouch` are reserved for later movement-tech tiers and are unused in the PoC. |
 | M4 | `itemSlots` MUST satisfy O3, and each slot's `reachableFrom` MUST be consistent with `traversal`. |
-| M5 | `startPoints` are optional. A room without them is never chosen as the start room. |
+| M5 | `startPoints` are optional. The first one is the room's start point when `ROOM.O` has no player object (O1). A start point is assumed to reach the room's first connector. A room without one starts the player just inside that connector. |
 | M6 | `bounds` MUST contain every vertex (G4), and `minY`/`maxY` MUST cover every floor and ceiling (for later stacking). |
 | M7 | `resources` MUST list exactly the names used by `ROOM.O` (O6). The validator checks this. |
 | M8 | Each `goals` entry MUST name a goal item and match an object in `ROOM.O` with that logic (within 1 unit in X/Z). An item appears at most once per room (the engine counts each goal item once per level). `reachableFrom` lists the connectors it can be reached from; empty means all. |
@@ -257,7 +257,7 @@ existing `room.json` (see authoring-rooms.md §6).
 
 These are **not** authored in rooms. They are listed so authors know what they can leave out.
 
-- Player start, SAFE points at the start, the level exit trigger, and the `complete` elevator with its stops.
+- The player and the SAFE point at the start (at the start room's start point, O1/M5), the level exit trigger, and the `complete` elevator with its stops.
   The exit is an unused connector's stub (lit, with a `trigger single` sending `complete 1`). The `complete`
   elevator lives in a small isolated script sector away from all rooms, as in the stock levels.
 - GOL goals: `ITEM:` goals for the goal items the rooms keep, then `TRIG: 1` for the exit. A goal item counts once

@@ -12,7 +12,7 @@
 | `rooms/examples/` | Original example rooms (committed; no LucasArts data). |
 | `docs/knobs.md` | Randomizer knobs (settings): principles and catalog. A project-wide goal. |
 | `tools/room-candidates/` | Python helper for choosing rooms (map and candidate report). Not part of the core. |
-| `tools/room-extractor/` | Cuts selected rooms out of stock levels into room packages, and builds playtest GOBs. Uses the core. |
+| `tools/room-extractor/` | Cuts selected rooms out of stock levels into room packages. Uses the core. |
 | `rooms/poc-selection.json`, `rooms/secbase-selection.json` | Chosen rooms per source level (sector numbers, doorways, optional rotation). |
 | `rooms/stock/` | Room packages extracted from your `DARK.GOB` (git-ignored: LucasArts geometry). |
 | `out/` | Generated levels (git-ignored). |
@@ -30,7 +30,7 @@
 | `DarkForces.Core.Gol` / `.Lvl` | GOL goals, JEDI.LVL mission list. |
 | `DarkForces.Core.Geometry` | Sector geometry: winding, containment, bounds, facings, convexity. |
 | `DarkForces.Core.Rooms` | Room packages (`room.json` + LEV/O/INF), room-spec rules, the validator, and the room transform (rotate, move, rename). |
-| `DarkForces.Core.Authoring` | Room authoring: starter-room scaffold (`room init`) and `room.json` builder (`room metadata`). |
+| `DarkForces.Core.Authoring` | Room authoring: starter-room scaffold (`room init`), `room.json` builder (`room metadata`), single-room playtest GOBs (`room playtest`). |
 | `DarkForces.Core.Knobs` | Randomizer settings: `[Knob]`-declared properties, presets, `--set` overrides, validation. |
 | `DarkForces.Core.Generation` | Seeded RNG, layout generator (direct joins and generated hallways), hallway builder, progression planner and solver, level merger (joins, doors, locks, keys, exit), and the `Generator` entry point. |
 | `DarkForces.Core.Output` | Writes the finished GOB and its zip. |
@@ -47,6 +47,7 @@ dotnet run --project src/DfTool -- roundtrip <path>...      # GOBs / LEV / O / I
 dotnet run --project src/DfTool -- room init <dir> [--connectors W,E16] [--size 32x32] ...  # starter room that validates
 dotnet run --project src/DfTool -- room metadata <dir> [--write]  # build room.json from the room files, keeping authored fields
 dotnet run --project src/DfTool -- room validate <room dir>...   # check room packages against docs/room-spec.md
+dotnet run --project src/DfTool -- room playtest <dir> --gob gamedata/DARK.GOB --out out/ROOM.GOB [--at A]  # play one room alone
 dotnet run --project src/DfTool -- knobs [--json]                # list knobs / print the default preset
 dotnet run --project src/DfTool -- generate --gob gamedata/DARK.GOB --rooms rooms/stock --out out/RANDO.GOB \
     [--preset p.json] [--seed <n|text>] [--set layout.roomCount=5]...  # writes out/RANDO.GOB and out/RANDO.zip

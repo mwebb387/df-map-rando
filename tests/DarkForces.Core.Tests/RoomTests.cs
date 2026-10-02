@@ -132,12 +132,13 @@ public class RoomValidatorTests
     public void Object_rules()
     {
         var room = SampleRoom.Build();
-        room.Objects.Objects.Add(SampleRoom.Object(4, 4, "PLAYER"));
+        room.Objects.Objects.Add(SampleRoom.Object(4, 4, "PLAYER"));   // one is the room's start point...
+        room.Objects.Objects.Add(SampleRoom.Object(5, 4, "PLAYER"));   // ...two is an error
         room.Objects.Objects.Add(SampleRoom.Object(6, 4, "ITEM", "RED"));
         room.Objects.Objects.Add(SampleRoom.Object(22, 4, "ITEM", "SHIELD")); // inside the stub
         room.Objects.Objects.Add(SampleRoom.Object(50, 50, "ITEM", "SHIELD")); // outside the room
         var errors = Errors(room);
-        Assert.Contains("O1", errors);
+        Assert.Single(errors, e => e == "O1");
         Assert.Contains("O2", errors);
         Assert.Equal(2, errors.Count(e => e == "O3"));
     }

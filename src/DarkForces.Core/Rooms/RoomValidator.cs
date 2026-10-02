@@ -250,12 +250,13 @@ public static class RoomValidator
         public void Objects()
         {
             var objs = room.Objects;
+            // A player object is the room's start point (RoomStarts); one at most.
+            if (objs.Objects.Count(LogicCatalog.IsPlayer) is var players and > 1)
+                Error("O1", $"{players} player objects; a room may have one (it marks the room's start point)");
             for (var oi = 0; oi < objs.Objects.Count; oi++)
             {
                 var o = objs.Objects[oi];
                 var tag = $"object {oi} ({o.Class} {string.Join('/', o.Logics)})";
-                if (LogicCatalog.IsPlayer(o))
-                    Error("O1", $"{tag}: rooms must not contain the player");
                 if (LogicCatalog.GoalItemOf(o) is { } goal)
                 {
                     if (!_meta.Goals.Any(g => DeclaresGoal(g, goal, o)))

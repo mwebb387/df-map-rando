@@ -99,6 +99,8 @@ public static class LevelMerger
             {
                 if (LogicCatalog.GoalItemOf(src) is { } goal && !plan.Keeps(ii, goal))
                     continue; // a repeated goal room, or goals turned off
+                if (LogicCatalog.IsPlayer(src))
+                    continue; // a room's player object only marks its start point; the generator places the player
                 var o = src.Clone();
                 if (inst.Objects.TableFor(o.Class) is { } srcTable && obj.TableFor(o.Class) is { } table)
                 {
@@ -195,7 +197,11 @@ public static class LevelMerger
         // ---- player start
         var startConnector = connectors[layout.StartInstance][layout.StartConnector];
         var startInst = layout.Instances[layout.StartInstance];
-        var spot = ConnectorLocator.SpawnInside(startInst.Lev, startConnector, layout.FacingOf(layout.StartInstance, layout.StartConnector));
+        // The start room's own start point (its player object, else room.json startPoints), else just inside a doorway.
+        var roomStart = RoomStarts.Of(startInst);
+        var spot = roomStart is { Point: var p }
+            ? new Spot(p.X, p.Y, p.Z, p.Yaw)
+            : ConnectorLocator.SpawnInside(startInst.Lev, startConnector, layout.FacingOf(layout.StartInstance, layout.StartConnector));
         obj.Objects.InsertRange(0, [
             new DfObject
             {
@@ -204,7 +210,12 @@ public static class LevelMerger
             },
             new DfObject { Class = "SAFE", X = spot.X, Y = spot.Y, Z = spot.Z, Yaw = spot.Yaw, Difficulty = 1 },
         ]);
-        log.Add($"start: {startInst.Source.Metadata.Id} (instance {layout.StartInstance}) inside connector {layout.StartConnector}");
+        log.Add($"start: {startInst.Source.Metadata.Id} (instance {layout.StartInstance}) " + (roomStart?.Source switch
+        {
+            StartSource.PlayerObject => "at the room's player object",
+            StartSource.Metadata => "at the room's start point (room.json)",
+            _ => $"inside connector {layout.StartConnector}",
+        }));
         return new MergedLevel(lev, obj, inf, log);
     }
 

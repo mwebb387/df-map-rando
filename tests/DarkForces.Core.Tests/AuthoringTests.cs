@@ -1,6 +1,7 @@
 using DarkForces.Core.Authoring;
 using DarkForces.Core.Geometry;
 using DarkForces.Core.Inf;
+using DarkForces.Core.Lev;
 using DarkForces.Core.Objects;
 using DarkForces.Core.Rooms;
 
@@ -145,5 +146,122 @@ public class RoomMetadataBuilderTests
         var r = RoomMetadataBuilder.Build(room.Lev, room.Objects, room.Inf, room.Metadata, "ignored");
         Assert.False(r.IsValid);
         Assert.Contains(r.Findings, f => f.Rule == "C6");
+    }
+}
+
+public class RoomPlaytestTests
+{
+    [Theory]
+    [InlineData(8)]   // stub joins the room directly
+    [InlineData(16)]  // through an adapter
+    public void Wraps_the_room_with_the_player_just_inside_the_chosen_doorway(int opening)
+    {
+        var room = RoomScaffold.Build(new ScaffoldOptions { Connectors = [new(Facing.W), new(Facing.E, opening)] });
+        var game = new DarkForces.Core.Gob.GobArchive();
+        game.Put("SECBASE.CMP", [1, 2, 3]);
+        var gob = RoomPlaytest.Build(room, game, "SECBASE", "b");
+
+        Assert.Equal(["SECBASE.LEV", "SECBASE.O", "SECBASE.INF", "SECBASE.GOL", "SECBASE.CMP"], gob.Entries.Select(e => e.Name));
+        var obj = ObjFile.Parse(DarkForces.Core.Text.DfText.Decode(gob.Get("SECBASE.O")));
+        var player = Assert.Single(obj.Objects, LogicCatalog.IsPlayer);
+        // Just inside the room, 4 units past doorway B (the east wall), facing west into the room.
+        Assert.True(Geo.Contains(room.Lev.Sectors[0], player.X, player.Z));
+        Assert.Equal(4 + 32 - 4, player.X);
+        Assert.Equal(270, player.Yaw);
+        Assert.Contains(obj.Objects, o => o.Class == "SAFE");
+    }
+
+    [Fact]
+    public void Unknown_connector_is_an_error()
+    {
+        var room = RoomScaffold.Build(new ScaffoldOptions());
+        var ex = Assert.Throws<ArgumentException>(() => RoomPlaytest.Build(room, new DarkForces.Core.Gob.GobArchive(), "SECBASE", "Q"));
+        Assert.Contains("A, B", ex.Message);
+    }
+}
+
+public class RoomStartTests
+{
+    static DfObject Player(double x, double z, double yaw) => new()
+    {
+        Class = "SPIRIT", X = x, Y = 0, Z = z, Yaw = yaw, Difficulty = 1,
+        Seq = [new SeqEntry("LOGIC", ["PLAYER"]), new SeqEntry("EYE", ["TRUE"])],
+    };
+
+    static RoomPackage Room(bool player, bool metadata)
+    {
+        var room = RoomScaffold.Build(new ScaffoldOptions { Id = "start-room" });
+        if (player) room.Objects.Objects.Add(Player(20, 12, 90));
+        if (metadata) room.Metadata.StartPoints.Add(new StartPoint(10, 0, 30, 180));
+        return room;
+    }
+
+    static DarkForces.Core.Gob.GobArchive FakeGame()
+    {
+        var gob = new DarkForces.Core.Gob.GobArchive();
+        gob.Put("JEDI.LVL", DarkForces.Core.Text.DfText.Encode("LEVELS 1\r\nSecret Base, SECBASE, x\r\n"));
+        return gob;
+    }
+
+    [Fact]
+    public void One_player_object_is_allowed_silently_but_not_two()
+    {
+        var room = Room(player: true, metadata: false);
+        Assert.Empty(RoomValidator.Validate(room));
+        room.Objects.Objects.Add(Player(30, 30, 0));
+        Assert.Contains(RoomValidator.Validate(room), f => f.Rule == "O1" && f.Severity == Severity.Error);
+    }
+
+    [Theory]
+    [InlineData(true, true, 20, 12, StartSource.PlayerObject)]   // the player object wins
+    [InlineData(true, false, 20, 12, StartSource.PlayerObject)]
+    [InlineData(false, true, 10, 30, StartSource.Metadata)]      // no player object: room.json
+    public void Start_point_comes_from_the_player_object_else_metadata(bool player, bool metadata, double x, double z, StartSource source)
+    {
+        var start = RoomStarts.Of(Room(player, metadata));
+        Assert.NotNull(start);
+        Assert.Equal((x, z, source), (start.Point.X, start.Point.Z, start.Source));
+    }
+
+    [Fact]
+    public void No_start_point_means_none()
+    {
+        Assert.Null(RoomStarts.Of(Room(player: false, metadata: false)));
+    }
+
+    [Fact]
+    public void Metadata_start_points_move_with_the_instance()
+    {
+        var p = new Placement(1, 64, 5, -8);
+        var start = RoomStarts.Of(RoomTransformer.Apply(Room(player: false, metadata: true), p, "R1_"));
+        var v = p.Apply(new Vertex(10, 30));
+        Assert.Equal((v.X, 5.0, v.Z, 270.0), (start!.Point.X, start.Point.Y, start.Point.Z, start.Point.Yaw));
+    }
+
+    [Fact]
+    public void Generated_levels_have_one_player_at_the_start_rooms_player_object()
+    {
+        var s = new DarkForces.Core.Knobs.RandomizerSettings { Seed = 4 };
+        s.Layout.RoomCount = 3;
+        var g = DarkForces.Core.Generation.Generator.Generate(s, [Room(player: true, metadata: false)], FakeGame());
+        var obj = ObjFile.Parse(DarkForces.Core.Text.DfText.Decode(g.Gob.Get("SECBASE.O")));
+
+        var player = Assert.Single(obj.Objects, LogicCatalog.IsPlayer); // three rooms with a player object each, one player
+        var inst = g.Layout.Instances[g.Layout.StartInstance];
+        var expected = inst.Placement.Apply(new Vertex(20, 12));
+        Assert.Equal((expected.X, expected.Z, inst.Placement.ApplyAngle(90)), (player.X, player.Z, player.Yaw));
+        Assert.Contains(g.Log, l => l.Contains("at the room's player object"));
+    }
+
+    [Fact]
+    public void Playtest_starts_at_the_player_object_unless_a_connector_is_given()
+    {
+        var room = Room(player: true, metadata: false);
+        var gob = RoomPlaytest.Build(room, new DarkForces.Core.Gob.GobArchive(), "SECBASE", null);
+        var player = Assert.Single(ObjFile.Parse(DarkForces.Core.Text.DfText.Decode(gob.Get("SECBASE.O"))).Objects, LogicCatalog.IsPlayer);
+        Assert.Equal((20.0, 12.0), (player.X, player.Z));
+
+        var atA = RoomPlaytest.Spawn(room, "A");
+        Assert.NotEqual((20.0, 12.0), (atA.X, atA.Z));
     }
 }

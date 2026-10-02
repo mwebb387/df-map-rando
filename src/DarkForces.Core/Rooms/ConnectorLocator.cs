@@ -19,13 +19,16 @@ public static class ConnectorLocator
     /// </summary>
     public static Spot SpawnInside(LevFile lev, ConnectorGeometry c, Facing worldFacing)
     {
-        var inner = InnerNeighbor(lev, c);
-        var adapter = lev.Sectors[inner];
-        // If the stub adjoins the room directly (no adapter), the room is the inner neighbour itself.
-        var shared = adapter.Walls.FirstOrDefault(w => w.Adjoin >= 0 && w.Adjoin != c.StubSector);
+        var stub = lev.Sectors[c.StubSector];
+        var inner = lev.Sectors[InnerNeighbor(lev, c)];
+        // With an adapter, start past the adapter's room-side wall. Without one (the stub joins the room directly),
+        // the inner neighbour is the room itself, and its other adjoins lead elsewhere: use the stub's inner wall.
+        // Names may carry an instance prefix (R1_CA_A), so match the end.
+        var isAdapter = inner.Name.EndsWith(RoomRules.AdapterNameFor(c.Id), StringComparison.OrdinalIgnoreCase);
+        var shared = isAdapter ? inner.Walls.FirstOrDefault(w => w.Adjoin >= 0 && w.Adjoin != c.StubSector) : null;
         var (room, (a, b)) = shared != null
-            ? (lev.Sectors[shared.Adjoin], Geo.Segment(adapter, shared))
-            : (adapter, Geo.Segment(lev.Sectors[c.StubSector], lev.Sectors[c.StubSector].Walls.Single(w => w.Adjoin >= 0)));
+            ? (lev.Sectors[shared.Adjoin], Geo.Segment(inner, shared))
+            : (inner, Geo.Segment(stub, stub.Walls.Single(w => w.Adjoin >= 0)));
         var into = Geo.Opposite(worldFacing);
         var (dx, dz) = Geo.Direction(into);
         const double inset = 4;

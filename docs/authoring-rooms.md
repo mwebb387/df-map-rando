@@ -34,6 +34,8 @@ All authoring commands are under `dftool room`:
 dftool room init     <dir> [options]     create a starter room that already validates
 dftool room metadata <dir> [--write]     build room.json from the room files, keeping what you wrote
 dftool room validate <dir>...            check rooms against the spec
+dftool room playtest <dir> --gob <DARK.GOB> --out <FILE.GOB> [--at <connector>]
+                                         play the room on its own
 ```
 
 (`dftool` is `dotnet run --project src/DfTool --`.)
@@ -51,12 +53,19 @@ dftool room validate rooms/mine/guard-room
 Then try it:
 
 ```
-# The room on its own, with the player at a connector (tools/room-extractor; also writes a .zip for The Force Engine)
-dotnet run --project tools/room-extractor -- playtest --gob gamedata/DARK.GOB --room rooms/mine/guard-room --out out/GUARD.GOB --at A
+# The room on its own, the player just inside doorway A (also writes out/GUARD.zip for The Force Engine)
+dftool room playtest rooms/mine/guard-room --gob gamedata/DARK.GOB --out out/GUARD.GOB --at A
 
 # The room in generated levels, alongside the stock rooms
 dftool generate --gob gamedata/DARK.GOB --rooms rooms/stock --rooms rooms/mine --out out/MINE.GOB --seed 1
 ```
+
+`room playtest` replaces one mission (`--slot`, default SECBASE) with your room alone: doorways stay sealed,
+and the player and a SAFE point start at the room's start point (§7.1). With `--at`, or if the room has no start
+point, they start 4 units inside that doorway (default the first), facing in. In The
+Force Engine, load the `.zip` as a mod. In DOS, run `dark -uGUARD.GOB`. Then start that mission. It refuses a room
+with validation errors unless you pass `--force`, and `--no-zip` skips the zip. Keep `.GOB` names to 8
+characters for DOS.
 
 Run `room metadata --write` again whenever you change the geometry or objects. It never touches your
 LEV/O/INF files, and it refuses to write a `room.json` that leaves the room invalid.
@@ -204,7 +213,7 @@ Leave `door` out for an open archway. Never put `key:` on a door yourself: locks
 | `traversal` | §6.1 |
 | `itemSlots` | Spots where the generator may place keys and other progression items (§7). |
 | `goals[].reachableFrom` | §7 |
-| `startPoints` | Where the player could start, `{ x, y, z, yaw }`. Not used yet (the player currently starts inside a doorway); planned for `progression.startRoom`. |
+| `startPoints` | Where the player starts if this is the start room, `{ x, y, z, yaw }`. Only used when `ROOM.O` has no player object (§7.1). |
 
 `room metadata` also reports what changed: connectors added, removed, or moved to a new facing or floor, goals
 found or gone, traversal edges dropped or drafted. Read that report, because it's how you catch an
@@ -239,9 +248,24 @@ things are off limits, because the randomizer places them:
 
 | Not allowed in a room | Why | Instead |
 |---|---|---|
-| The player, `LOGIC: PLAYER` (O1) | The generator places the start | `startPoints` (planned) |
 | Keys `RED`/`BLUE`/`YELLOW`, `CODE1`–`9`, cleats, mask, goggles, key-carrying officers (O2) | The randomizer decides where progression goes | An `itemSlots` entry where such an item could sit |
 | VUE-animated objects (O5) | VUE paths are absolute coordinates | — |
+
+### 7.1 The player object and start points
+
+You may leave **one** player object (`LOGIC: PLAYER`) in `ROOM.O`, so the room can be tested in your editor. It
+marks the room's **start point**. Where the player starts, when your room is the level's start room:
+
+1. at your player object, if `ROOM.O` has one;
+2. otherwise at the first `startPoints` entry in `room.json`;
+3. otherwise 4 units inside the room's first doorway, facing in.
+
+The player object itself never appears in a generated level. The generator removes it from every copy of the
+room and spawns the one real player at the start point, which moves and turns with the room. `room playtest`
+does the same. Two or more player objects in one room is an error (O1).
+
+The randomizer assumes the start point can reach the room's first connector (A), as the doorway start does.
+Put it somewhere the player can walk from to the rest of the room.
 
 **Goal items** (`PLANS`, `PHRIK`, `NAVA`, `DATATAPE`, `DT_WEAPON`, `PILE`) are the exception. Place one in
 `ROOM.O` and `room metadata` declares it in `goals` (rule M8). Each goal item may appear once per room. In a
@@ -288,7 +312,8 @@ steps. Avoid floor textures with an obvious direction, or set `"rotatable": fals
 | G2 | An adjoin doesn't point back | Re-adjoin the two walls in the editor |
 | G5 | Something sticks out past a portal | Move the stub out to the room's edge |
 | G7 (warning) | A low ceiling, or an opening you must crouch through | Raise the ceiling, or ignore it if the crawlspace is intended |
-| O1, O2 | The player or a key in `ROOM.O` | Delete it; add an `itemSlots` spot for keys |
+| O1 | More than one player object | Keep one (it's the start point, §7.1) |
+| O2 | A key, gating item or key carrier in `ROOM.O` | Delete it; add an `itemSlots` spot instead |
 | M8 | A goal is declared but the object is gone, or the other way round | Run `room metadata --write` |
 | I1 | INF talks to a sector outside the room | Keep logic within the room |
 
